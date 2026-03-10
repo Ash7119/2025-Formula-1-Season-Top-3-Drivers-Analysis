@@ -9,6 +9,7 @@ The analysis is hosted by a streamlit dashboard with 4 tabs:
 
 ## Data
 The data is pulled from the FASTF1 api.
+
 Link: https://docs.fastf1.dev/index.html
 
 ## Libraries used:
