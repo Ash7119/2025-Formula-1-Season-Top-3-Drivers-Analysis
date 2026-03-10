@@ -17,4 +17,6 @@ Link: https://docs.fastf1.dev/index.html
 - Streamlit
 - Plotly
 - Matplotlib
--
+- Numpy
+- Pandas
+- Seaborn
