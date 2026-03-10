@@ -8,13 +8,13 @@ The analysis is hosted by a streamlit dashboard with 4 tabs:
 - Race Analysis
 
 ## Data
-The data is pulled from the FASTF1 api.
+The data is pulled from the FastF1 api.
 
 Link: https://docs.fastf1.dev/index.html
 
 ## Libraries used:
--
--
--
--
+- FastF1
+- Streamlit
+- Plotly
+- Matplotlib
 -
