@@ -20,3 +20,9 @@ Link: https://docs.fastf1.dev/index.html
 - Numpy
 - Pandas
 - Seaborn
+
+## Progress
+1. Homepage
+2. Season Overview ✅
+3. Qualifyong analysis
+4. Race analysis
