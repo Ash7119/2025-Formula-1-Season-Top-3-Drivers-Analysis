@@ -101,6 +101,8 @@ def load_all_season_data(year, schedule):
     all_results = []
     
     completed_races = schedule[schedule['EventDate'] <= pd.Timestamp.now()]
+
+    completed_races = completed_races[completed_races['EventFormat'] != 'testing']
     
     for idx, race in completed_races.iterrows():
         round_num = race['RoundNumber']
@@ -368,7 +370,7 @@ def avg_position_chart(avg_positions_df, results_df):
         xaxis_title="Driver",
         yaxis_title="Position (Lower is Better)",
         barmode='group',
-        height=400,
+        height=550,
         yaxis=dict(autorange="reversed"),  # Lower position = better
         legend=dict(
             orientation="h",
@@ -454,7 +456,7 @@ with tab2:
     
     st.markdown("---")
 
-    st.subheader("🎯 Average Qualifying & Race Positions")
+    st.subheader("Average Qualifying & Average Race Positions")
     avg_pos_chart = avg_position_chart(avg_positions, season_results)
     st.plotly_chart(avg_pos_chart, use_container_width=True)
             
@@ -478,8 +480,8 @@ with tab3:
     
     st.markdown("---")
 
-with tab3:
-    st.title("Race Analysis Analysis")
+with tab4:
+    st.title("Race Analysis")
     st.subheader("An analysis on the drivers performance during the Featured Race across the 2025 F1 Season.")
     
     st.markdown("""
