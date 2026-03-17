@@ -24,5 +24,5 @@ Link: https://docs.fastf1.dev/index.html
 ## Progress
 1. Homepage
 2. Season Overview ✅
-3. Qualifyong analysis
+3. Qualifying analysis
 4. Race analysis
