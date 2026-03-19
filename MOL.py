@@ -185,14 +185,12 @@ def calculate_championship_standings(results_df):
     
     return standings
 
-
 def calculate_cumulative_points(results_df):
     results_sorted = results_df.sort_values(['driver', 'round'])
 
     results_sorted['cumulative_points'] = results_sorted.groupby('driver')['points'].cumsum()
     
     return results_sorted
-
 
 def calculate_avg_positions(results_df):
     avg_positions = results_df.groupby('driver').agg({
@@ -231,7 +229,6 @@ def championship_cards(standings_df):
                 <p style='margin: 5px 0;'><b>Podiums:</b> {int(driver_data['podiums'])}</p>
             </div>
             """, unsafe_allow_html=True)
-
 
 def points_progression_chart(cumulative_df):
     fig = go.Figure()
@@ -274,7 +271,6 @@ def points_progression_chart(cumulative_df):
     
     return fig
 
-
 def race_results_heatmap(results_df):
     heatmap_data = results_df.pivot(
         index='driver',
@@ -314,7 +310,6 @@ def race_results_heatmap(results_df):
     
     return fig
 
-
 def h2h_stats_table(standings_df):
     display_data = []
     
@@ -330,7 +325,6 @@ def h2h_stats_table(standings_df):
     df_display = pd.DataFrame(display_data)
     
     return df_display
-
 
 def avg_position_chart(avg_positions_df, results_df):
     chart_data = []
@@ -390,6 +384,52 @@ with st.sidebar:
     st.info(f"📅 Analyzing **{selected_year} Season**")
     
     schedule = get_2025_race_schedule(selected_year)
+    
+    st.markdown("---")
+    
+    st.subheader("🏎️ Driver Selection")
+    st.caption("Applies to: Qualifying & Race Analysis tabs")
+    
+    selected_drivers = st.multiselect(
+        "Select Drivers to Compare",
+        options=['VER', 'NOR', 'PIA'],
+        default=['VER', 'NOR', 'PIA'],  
+        format_func=lambda x: DRIVER_CONFIG[x]['name']  
+    )
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("Select All"):
+            st.session_state.selected_drivers = ['VER', 'NOR', 'PIA']
+            st.rerun()
+    with col2:
+        if st.button("Clear All"):
+            st.session_state.selected_drivers = []
+            st.rerun()
+    
+    if len(selected_drivers) == 0:
+        st.warning("⚠️ Please select at least one driver")
+    
+    st.markdown("---")
+    
+    st.subheader("🏁 Race Selection")
+    st.caption("Applies to: Qualifying & Race Analysis tabs")
+    
+    if schedule is not None:
+        completed_races = schedule[schedule['EventDate'] <= pd.Timestamp.now()]
+        
+        race_options = {}
+        for idx, race in completed_races.iterrows():
+            race_options[f"{race['EventName']} (Round {race['RoundNumber']})"] = race['RoundNumber']
+        
+        selected_race_name = st.selectbox(
+            "Select Race",
+            options=list(race_options.keys()),
+            index=len(race_options) - 1  
+        )
+        
+        selected_race_round = race_options[selected_race_name]
+        st.info(f"📍 Round {selected_race_round}: {selected_race_name.split(' (')[0]}")
 
 tab1, tab2, tab3, tab4 = st.tabs([
     "Home", 
@@ -475,7 +515,7 @@ with tab3:
     This section will provide insights into the drivers' qualifying performance, including:
     - Delta Time Chart: Comparing the drivers' fastest lap times in qualifying sessions. This analysis is acompanied by a speed, throttle and delta panel to provide a comprehensive view of the drivers' performance during qualifying sessions.
     - Minisector Plot: A plot of the circuit where it displays the drivers dominance in deifferent parts of the track, showing which driver was faster in each sector of the circuit.
-    - Speed Trace with corner annotations: A plot of the drivers speed trace during their fastest qualifying lap, with the x-axis representing the corners and the y axis representing the speed. 
+    - Speed Trace with Corner Annotations: A plot of the drivers speed trace during their fastest qualifying lap, with the x-axis representing the corners and the y axis representing the speed. 
     """)
     
     st.markdown("---")
@@ -486,7 +526,13 @@ with tab4:
     
     st.markdown("""
     This section will provide insights into the drivers' race performance, including:
-    - Race Gap Overtime:
+    - Race Gap Overtime:A line plot of the gap between the drivers during the race, with the x-axis representing the laps and the y-axis representing lap time.
+    - Tyre Strategy Analysis: A bar chart showing the tyre strategy of each driver during the race, including the type of tyre used and the lap on which they were used.
+    - Degradation Analysis: A line plot showing the degradation of the tyres over the course of the race.
+    - Minisection Plot: A plot of the circuit where it displays the drivers dominance in deifferent parts of the track, showing which driver was faster in each sector of the circuit.
+    - Lap Time Scatter Plot: A scatter plot of the lap times of each driver during the race, with the x-axis representing the lap number and the y-axis representing the lap time grouped by tyre compound. This plot can be used to identify trends in the drivers' performance throughout the race.
+    - Lap Time Violin PLot: A violin plot of the lap times of each driver during the race, with the x-axis representing the driver and the y-axis representing the lap time grouped by tyre compound. This plot can be used to identify trends in the drivers' performance throughout the race.
+    - Race Pace Comparision: A box plot comparing the race pace of the drivers.
     """)
     
     st.markdown("---")
