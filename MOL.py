@@ -154,7 +154,7 @@ def load_all_season_data(year, schedule):
                         'race_position': driver_race.iloc[0]['Position'],
                         'race_points': race_points,
                         'sprint_points': sprint_pts,
-                        'points': total_points,  # Total points including sprint
+                        'points': total_points,  
                         'grid_position': driver_race.iloc[0]['GridPosition'],
                         'quali_position': driver_quali.iloc[0]['Position'] if not driver_quali.empty else None,
                         'status': driver_race.iloc[0]['Status'],
@@ -167,6 +167,27 @@ def load_all_season_data(year, schedule):
             continue
     
     return pd.DataFrame(all_results)
+
+def load_race_laps(year, race_round, driver_codes):
+    try:
+        session = fastf1.get_session(year, race_round, 'R')
+        session.load()
+        
+        all_laps = []
+        
+        for driver_code in driver_codes:
+            driver_laps = session.laps.pick_driver(driver_code)
+            driver_laps['DriverCode'] = driver_code
+            
+            all_laps.append(driver_laps)
+        
+        combined_laps = pd.concat(all_laps, ignore_index=True)
+        
+        return combined_laps
+        
+    except Exception as e:
+        st.error(f"Error loading lap data: {str(e)}")
+        return None
 
 def calculate_championship_standings(results_df):
     standings = results_df.groupby('driver').agg({
@@ -362,10 +383,10 @@ def avg_position_chart(avg_positions_df, results_df):
     fig.update_layout(
         title="Average Qualifying vs Race Positions",
         xaxis_title="Driver",
-        yaxis_title="Position (Lower is Better)",
+        yaxis_title="Position ",
         barmode='group',
         height=550,
-        yaxis=dict(autorange="reversed"),  # Lower position = better
+        yaxis=dict(autorange="reversed"),  
         legend=dict(
             orientation="h",
             yanchor="bottom",
@@ -376,6 +397,187 @@ def avg_position_chart(avg_positions_df, results_df):
     )
     
     return fig
+
+#Delta Time Quali Code
+
+#Minisector Q
+
+#Race gap overtime and Tyre Strat
+
+#Degradation
+
+#Minisector R
+
+#Lap Time Consistency Scatter Plot
+def laptimes_scatter(laps_df, selected_drivers):
+    
+    fig = go.Figure()
+    
+    compound_colors = {
+        'SOFT': '#FF0000',        
+        'MEDIUM': '#FFF200',       
+        'HARD': '#FFFFFF',        
+        'INTERMEDIATE': '#00FF00', 
+        'WET': '#0000FF'          
+    }
+    
+    for driver_code in selected_drivers:
+        driver_laps = laps_df[laps_df['DriverCode'] == driver_code]
+        driver_config = DRIVER_CONFIG[driver_code]
+        
+        compounds = driver_laps['Compound'].dropna().unique()
+        
+        for compound in compounds:
+            compound_laps = driver_laps[driver_laps['Compound'] == compound]
+            
+            valid_laps = compound_laps[
+                (compound_laps['LapTime'].notna()) &
+                (compound_laps['IsAccurate'] == True)  
+            ]
+            
+            if valid_laps.empty:
+                continue
+            
+            lap_times_seconds = valid_laps['LapTime'].dt.total_seconds()
+            
+            fig.add_trace(go.Scatter(
+                x=valid_laps['LapNumber'],
+                y=lap_times_seconds,
+                mode='markers',
+                name=f"{driver_config['name']} - {compound}",
+                marker=dict(
+                    size=8,
+                    color=compound_colors.get(compound, '#CCCCCC'),  
+                    line=dict(
+                        color=driver_config['color'], 
+                        width=2
+                    )
+                ),
+                legendgroup=driver_code,
+                hovertemplate=(
+                    f"<b>{driver_config['name']}</b><br>"
+                    "Lap: %{x}<br>"
+                    "Time: %{y:.3f}s<br>"
+                    f"Compound: {compound}<br>"
+                    "<extra></extra>"
+                )
+            ))
+    
+    fig.update_layout(
+        title="Lap Times Throughout the Race (by Tire Compound)",
+        xaxis_title="Lap Number",
+        yaxis_title="Lap Time (seconds)",
+        hovermode='closest',
+        height=600,
+        plot_bgcolor='#1a1a1a',
+        paper_bgcolor='#1a1a1a',
+        font=dict(color='white', size=12),
+        legend=dict(
+            orientation="v",
+            yanchor="top",
+            y=1,
+            xanchor="left",
+            x=1.02,
+            bgcolor='rgba(0,0,0,0.5)',
+            title="Driver - Compound"
+        ),
+        xaxis=dict(
+            showgrid=True,
+            gridwidth=1,
+            gridcolor='#333333'
+        ),
+        yaxis=dict(
+            showgrid=True,
+            gridwidth=1,
+            gridcolor='#333333'
+        )
+    )
+    
+    return fig
+
+#Lap Time Consistency Violin Plot
+def laptimes_violin(laps_df, selected_drivers):
+    laps_df = laps_df[laps_df['DriverCode'].isin(selected_drivers)]
+    
+    laps_df = laps_df[
+        (laps_df['LapTime'].notna()) &
+        (laps_df['IsAccurate'] == True)  
+    ].copy()
+    
+    laps_df['LapTimeSeconds'] = laps_df['LapTime'].dt.total_seconds()
+    
+    laps_df['DriverName'] = laps_df['DriverCode'].apply(lambda code: DRIVER_CONFIG[code]['name'])
+    
+    compound_colors = {
+        'SOFT': '#FF0000',        
+        'MEDIUM': '#FFF200',      
+        'HARD': '#FFFFFF',        
+        'INTERMEDIATE': '#00FF00', 
+        'WET': '#0000FF'          
+    }
+    
+    fig = go.Figure()
+    
+    for driver in selected_drivers:
+        driver_data = laps_df[laps_df['DriverCode'] == driver]
+        driver_name = DRIVER_CONFIG[driver]['name']
+        
+        fig.add_trace(go.Violin(
+            x=[driver_name] * len(driver_data),
+            y=driver_data['LapTimeSeconds'],
+            name=driver_name,
+            box_visible=True,
+            meanline_visible=False,
+            fillcolor='rgba(0,0,0,0)',  # 👈 Transparent fill
+            line_color=DRIVER_CONFIG[driver]['color'],  # 👈 Use driver color for outline
+            opacity=0.6,
+            points=False,  # 👈 Don't show points yet (we'll add them separately)
+            showlegend=False
+        ))
+    
+    for compound, color in compound_colors.items():
+        compound_data = laps_df[laps_df['Compound'] == compound]
+        
+        if not compound_data.empty:
+            fig.add_trace(go.Scatter(
+                x=compound_data['DriverName'],
+                y=compound_data['LapTimeSeconds'],
+                mode='markers',
+                name=compound,  
+                marker=dict(
+                    color=color,  
+                    size=6,
+                    opacity=0.7,
+                    line=dict(width=0.5, color='white')
+                ),
+                hovertemplate='<b>%{x}</b><br>' +
+                             'Lap Time: %{y:.3f}s<br>' +
+                             f'Compound: {compound}<br>' +
+                             '<extra></extra>'
+            ))
+    
+    fig.update_layout(
+        height=600,
+        plot_bgcolor='#1a1a1a',
+        paper_bgcolor='#1a1a1a',
+        font=dict(color='white', size=12),
+        legend=dict(
+            orientation="v",
+            yanchor="top",
+            y=1,
+            xanchor="left",
+            x=1.02,
+            bgcolor='rgba(0,0,0,0.5)',
+            title="Tire Compound"
+        ),
+        xaxis_title="Driver",
+        yaxis_title="Lap Time (seconds)",
+        title="Lap Time Distribution by Driver and Tire Compound"
+    )
+    
+    return fig
+
+#Race Pace Comparison Box Plot
 
 with st.sidebar:
     st.header("Dashboard Controls")
@@ -393,19 +595,9 @@ with st.sidebar:
     selected_drivers = st.multiselect(
         "Select Drivers to Compare",
         options=['VER', 'NOR', 'PIA'],
-        default=['VER', 'NOR', 'PIA'],  
-        format_func=lambda x: DRIVER_CONFIG[x]['name']  
+        default=['VER', 'NOR', 'PIA'],
+        format_func=lambda x: DRIVER_CONFIG[x]['name']
     )
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("Select All"):
-            st.session_state.selected_drivers = ['VER', 'NOR', 'PIA']
-            st.rerun()
-    with col2:
-        if st.button("Clear All"):
-            st.session_state.selected_drivers = []
-            st.rerun()
     
     if len(selected_drivers) == 0:
         st.warning("⚠️ Please select at least one driver")
@@ -416,20 +608,37 @@ with st.sidebar:
     st.caption("Applies to: Qualifying & Race Analysis tabs")
     
     if schedule is not None:
-        completed_races = schedule[schedule['EventDate'] <= pd.Timestamp.now()]
+        # Filter: only completed races, exclude testing (Round 0)
+        completed_races = schedule[
+            (schedule['EventDate'] <= pd.Timestamp.now()) &
+            (schedule['RoundNumber'] > 0) &
+            (schedule['EventFormat'] != 'testing')
+        ].copy()
         
-        race_options = {}
-        for idx, race in completed_races.iterrows():
-            race_options[f"{race['EventName']} (Round {race['RoundNumber']})"] = race['RoundNumber']
-        
-        selected_race_name = st.selectbox(
-            "Select Race",
-            options=list(race_options.keys()),
-            index=len(race_options) - 1  
-        )
-        
-        selected_race_round = race_options[selected_race_name]
-        st.info(f"📍 Round {selected_race_round}: {selected_race_name.split(' (')[0]}")
+        if len(completed_races) == 0:
+            st.warning("No completed races yet")
+            selected_race_round = None
+            selected_race_name = None
+        else:
+            race_options = []
+            race_round_map = {}
+            
+            for idx, race in completed_races.iterrows():
+                race_label = f"{race['EventName']} (Round {race['RoundNumber']})"
+                race_options.append(race_label)
+                race_round_map[race_label] = race['RoundNumber']
+            
+            selected_race_name = st.selectbox(
+                "Select Race",
+                options=race_options,
+                index=len(race_options) - 1
+            )
+            
+            selected_race_round = race_round_map[selected_race_name]
+    else:
+        st.error("Could not load race schedule")
+        selected_race_round = None
+        selected_race_name = None
 
 tab1, tab2, tab3, tab4 = st.tabs([
     "Home", 
@@ -454,8 +663,8 @@ with tab2:
     st.subheader("Championship Standings and Performance Metrics")
     
     st.markdown("""
-    - **Championship Standings**: A table showing the current points and positions of the top 3 drivers.
-    - **Performance Metrics**: Key statistics such as wins, podiums, pole positions, and fastest laps.
+    - Championship Standings: A table showing the current points and positions of the top 3 drivers.
+    - Performance Metrics: Key statistics such as wins, podiums, pole positions, and fastest laps.
     """)
 
     if schedule is None:
@@ -471,12 +680,12 @@ with tab2:
             cumulative_points = calculate_cumulative_points(season_results)
             avg_positions = calculate_avg_positions(season_results)
             
-            st.subheader("🏆 Championship Standings")
+            st.subheader("Championship Standings")
             championship_cards(standings)
             
             st.markdown("---")
             
-            st.subheader("📈 Points Progression")
+            st.subheader("Points Progression")
             points_chart = points_progression_chart(cumulative_points)
             st.plotly_chart(points_chart, use_container_width=True)
             
@@ -485,12 +694,12 @@ with tab2:
             col1, col2 = st.columns([1.5, 1])
             
             with col1:
-                st.subheader("🗓️ Race Results Overview")
+                st.subheader("Race Results Overview")
                 heatmap = race_results_heatmap(season_results)
                 st.plotly_chart(heatmap, use_container_width=True)
             
             with col2:
-                st.subheader("📊 Head-to-Head Stats")
+                st.subheader("Head-to-Head Stats")
                 h2h_table = h2h_stats_table(standings)
                 st.dataframe(h2h_table, hide_index=True, use_container_width=True)
     
@@ -511,7 +720,7 @@ with tab3:
     st.title("Qualifying Analysis")
     st.subheader("An analysis on the drivers performance during Qualifying Sessions across the 2025 F1 Season.")
     
-    st.markdown("""
+    st.markdown("""""
     This section will provide insights into the drivers' qualifying performance, including:
     - Delta Time Chart: Comparing the drivers' fastest lap times in qualifying sessions. This analysis is acompanied by a speed, throttle and delta panel to provide a comprehensive view of the drivers' performance during qualifying sessions.
     - Minisector Plot: A plot of the circuit where it displays the drivers dominance in deifferent parts of the track, showing which driver was faster in each sector of the circuit.
@@ -536,3 +745,55 @@ with tab4:
     """)
     
     st.markdown("---")
+
+    if len(selected_drivers) == 0:
+        st.warning("⚠️ Please select at least one driver from the sidebar")
+        st.stop()
+    st.caption(f"**Analyzing:** {', '.join([DRIVER_CONFIG[d]['name'] for d in selected_drivers])} | **Race:** {selected_race_name}")
+    
+    st.markdown("---")
+    
+    with st.spinner(f"Loading race data for {selected_race_name}..."):
+        laps_data = load_race_laps(selected_year, selected_race_round, selected_drivers)
+        race_session = load_race_session(selected_year, selected_race_round, 'R')
+    
+    if laps_data is None or laps_data.empty:
+        st.error("Could not load race data for this race. Please try another race.")
+        st.stop()
+    
+    #1
+
+    #2
+
+    #3
+
+    #4
+    with st.expander("Lap Time Scatter Plot (by Tire Compound))", expanded=True):
+        st.subheader("Lap Time Progression Throughout the Race")
+        
+        st.markdown("""""
+        This scatter plot shows every lap time during the race, color-coded by tire compound:
+        - Dot fill color = Tire compound (Red=Soft, Yellow=Medium, White=Hard).
+        - Dot outline color = Driver's team color.
+        """)
+        
+        laptimes_chart = laptimes_scatter(laps_data, selected_drivers)
+        st.plotly_chart(laptimes_chart, use_container_width=True)
+        
+        st.markdown("---")
+
+    #5
+    with st.expander("Lap Time Distribution Violin Plot", expanded=False):
+        st.subheader("Lap Time Distribution by Driver and Tire Compound")
+        
+        st.markdown("""
+        This violin plot shows the distribution of lap times for each driver, grouped by tire compound:
+        - Each violin represents the distribution of lap times for a specific driver and tire compound.
+        - The width of the violin indicates the density of lap times at different values.
+        - The box plot inside the violin shows the interquartile range and median lap time.
+        """)
+        
+        laptimes_violin_chart = laptimes_violin(laps_data, selected_drivers)
+        st.plotly_chart(laptimes_violin_chart, use_container_width=True)
+
+    #6
