@@ -208,9 +208,7 @@ def calculate_championship_standings(results_df):
 
 def calculate_cumulative_points(results_df):
     results_sorted = results_df.sort_values(['driver', 'round'])
-
     results_sorted['cumulative_points'] = results_sorted.groupby('driver')['points'].cumsum()
-    
     return results_sorted
 
 def calculate_avg_positions(results_df):
@@ -218,7 +216,6 @@ def calculate_avg_positions(results_df):
         'quali_position': 'mean',
         'race_position': 'mean'
     }).round(2)
-    
     return avg_positions
 
 def championship_cards(standings_df):
@@ -408,7 +405,6 @@ def avg_position_chart(avg_positions_df, results_df):
 
 #Minisector R
 
-#Lap Time Consistency Scatter Plot
 def laptimes_scatter(laps_df, selected_drivers):
     
     fig = go.Figure()
@@ -495,7 +491,6 @@ def laptimes_scatter(laps_df, selected_drivers):
     
     return fig
 
-#Lap Time Consistency Violin Plot
 def laptimes_violin(laps_df, selected_drivers):
     laps_df = laps_df[laps_df['DriverCode'].isin(selected_drivers)]
     
@@ -526,13 +521,14 @@ def laptimes_violin(laps_df, selected_drivers):
             x=[driver_name] * len(driver_data),
             y=driver_data['LapTimeSeconds'],
             name=driver_name,
-            box_visible=True,
+            box_visible=False,
             meanline_visible=False,
-            fillcolor='rgba(0,0,0,0)',  # 👈 Transparent fill
-            line_color=DRIVER_CONFIG[driver]['color'],  # 👈 Use driver color for outline
+            fillcolor='rgba(0,0,0,0)', 
+            line_color=DRIVER_CONFIG[driver]['color'],  
             opacity=0.6,
-            points=False,  # 👈 Don't show points yet (we'll add them separately)
-            showlegend=False
+            points=False,  
+            showlegend=False,
+            hoverinfo='skip'
         ))
     
     for compound, color in compound_colors.items():
@@ -577,7 +573,43 @@ def laptimes_violin(laps_df, selected_drivers):
     
     return fig
 
-#Race Pace Comparison Box Plot
+def race_pace_comparison(laps_df, selected_drivers):
+    laps_df = laps_df[laps_df['DriverCode'].isin(selected_drivers)]
+    
+    laps_df = laps_df[
+        (laps_df['LapTime'].notna()) &
+        (laps_df['IsAccurate'] == True)  
+    ].copy()
+    
+    laps_df['LapTimeSeconds'] = laps_df['LapTime'].dt.total_seconds()
+    
+    laps_df['DriverName'] = laps_df['DriverCode'].apply(lambda code: DRIVER_CONFIG[code]['name'])
+    
+    fig = go.Figure()
+    
+    for driver in selected_drivers:
+        driver_data = laps_df[laps_df['DriverCode'] == driver]
+        driver_name = DRIVER_CONFIG[driver]['name']
+        
+        fig.add_trace(go.Box(
+            y=driver_data['LapTimeSeconds'],
+            name=driver_name,
+            boxpoints=False,
+            marker_color=DRIVER_CONFIG[driver]['color'],
+            line_color=DRIVER_CONFIG[driver]['color'],
+            fillcolor='rgba(0,0,0,0)',
+            opacity=0.7
+        ))
+    
+    fig.update_layout(
+        height=600,
+        plot_bgcolor='#1a1a1a',
+        paper_bgcolor='#1a1a1a',
+        font=dict(color='white', size=12),
+        xaxis_title="Driver",
+        yaxis_title="Lap Time (seconds)")
+    
+    return fig
 
 with st.sidebar:
     st.header("Dashboard Controls")
@@ -608,7 +640,6 @@ with st.sidebar:
     st.caption("Applies to: Qualifying & Race Analysis tabs")
     
     if schedule is not None:
-        # Filter: only completed races, exclude testing (Round 0)
         completed_races = schedule[
             (schedule['EventDate'] <= pd.Timestamp.now()) &
             (schedule['RoundNumber'] > 0) &
@@ -767,11 +798,10 @@ with tab4:
 
     #3
 
-    #4
     with st.expander("Lap Time Scatter Plot (by Tire Compound))", expanded=True):
         st.subheader("Lap Time Progression Throughout the Race")
         
-        st.markdown("""""
+        st.markdown("""
         This scatter plot shows every lap time during the race, color-coded by tire compound:
         - Dot fill color = Tire compound (Red=Soft, Yellow=Medium, White=Hard).
         - Dot outline color = Driver's team color.
@@ -782,7 +812,6 @@ with tab4:
         
         st.markdown("---")
 
-    #5
     with st.expander("Lap Time Distribution Violin Plot", expanded=False):
         st.subheader("Lap Time Distribution by Driver and Tire Compound")
         
@@ -796,4 +825,15 @@ with tab4:
         laptimes_violin_chart = laptimes_violin(laps_data, selected_drivers)
         st.plotly_chart(laptimes_violin_chart, use_container_width=True)
 
-    #6
+    with st.expander("Race Pace Comparison Box Plot", expanded=False):
+        st.subheader("Race Pace Comparison")
+        
+        st.markdown("""
+        This box plot compares the race pace of the selected drivers:
+        - Each box represents the distribution of lap times for a specific driver.
+        - The whiskers indicate the range of lap times, excluding outliers.
+        - The median lap time is shown as a horizontal line within each box.
+        """)
+        
+        race_pace_chart = race_pace_comparison(laps_data, selected_drivers)
+        st.plotly_chart(race_pace_chart, use_container_width=True)
