@@ -399,8 +399,96 @@ def avg_position_chart(avg_positions_df, results_df):
 
 #Minisector Q
 
-#Race gap overtime and Tyre Strat
+#Speed trace with corner annotations
 
+def racegap_tyrestrategy_chart(laps_df, session):
+    laps_df = laps_df.copy()
+    laps_df['LapTimeSeconds'] = laps_df['LapTime'].dt.total_seconds()
+    laps_df['DriverName'] = laps_df['DriverCode'].apply(lambda code: DRIVER_CONFIG[code]['name'])
+    
+    laps_df = laps_df.sort_values(['DriverCode', 'LapNumber'])
+    laps_df['CumulativeTime'] = laps_df.groupby('DriverCode')['LapTimeSeconds'].cumsum()
+    
+    leader_times = laps_df.groupby('LapNumber')['CumulativeTime'].min().reset_index()
+    leader_times.columns = ['LapNumber', 'LeaderTime']
+    
+    laps_df = laps_df.merge(leader_times, on='LapNumber', how='left')
+    laps_df['GapToLeader'] = laps_df['CumulativeTime'] - laps_df['LeaderTime']
+    
+    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.1,
+                        subplot_titles=["Race Gap Over Time", "Tyre Strategy"])
+    
+    for driver_code in laps_df['DriverCode'].unique():
+        driver_laps = laps_df[laps_df['DriverCode'] == driver_code]
+        driver_name = DRIVER_CONFIG[driver_code]['name']
+        
+        fig.add_trace(go.Scatter(
+            x=driver_laps['LapNumber'],
+            y=driver_laps['GapToLeader'],  
+            mode='lines+markers', 
+            name=driver_name,
+            line=dict(color=DRIVER_CONFIG[driver_code]['color'], width=2),
+            marker=dict(size=6),
+            hovertemplate=f"<b>{driver_name}</b><br>" +
+                         "Lap: %{x}<br>" +
+                         "Gap: %{y:.1f}s<br>" +  # 👈 Changed label
+                         "<extra></extra>",
+            showlegend=True
+        ), row=1, col=1)
+    
+    compound_colors = {
+        'SOFT': '#FF0000',      
+        'MEDIUM': '#FFA500',    
+        'HARD': '#FFFFFF',      
+        'INTERMEDIATE': '#00FF00',  
+        'WET': '#0000FF'        
+    }
+
+    driver_order = ['VER', 'NOR', 'PIA']
+
+    for driver_code in driver_order:
+        if driver_code not in laps_df['DriverCode'].unique():
+            continue
+        
+        driver_laps = laps_df[laps_df['DriverCode'] == driver_code].sort_values('LapNumber')
+        driver_name = DRIVER_CONFIG[driver_code]['name']
+        
+        # Calculate stint information using groupby
+        stints = driver_laps[["DriverCode", "Stint", "Compound", "LapNumber"]].copy()
+        stints = stints.groupby(["DriverCode", "Stint", "Compound"]).agg(
+            stint_length=('LapNumber', 'count'),
+            start_lap=('LapNumber', 'min'),
+            end_lap=('LapNumber', 'max')
+        ).reset_index()
+        
+        # Create stacked bars from stints
+        for _, stint in stints.iterrows():
+            fig.add_trace(go.Bar(
+                name=stint['Compound'],
+                x=[stint['stint_length']],
+                y=[driver_name],
+                orientation='h',
+                marker=dict(
+                    color=compound_colors.get(stint['Compound'], '#808080'),
+                    line=dict(color='black', width=1)
+                ),
+                hovertemplate="skip",
+                showlegend=False
+            ), row=2, col=1)
+
+    # Update layout
+    fig.update_xaxes(title_text="Lap Number", row=2, col=1)
+    fig.update_yaxes(title_text="Gap to Leader (s)", row=1, col=1)
+    fig.update_yaxes(title_text="Driver", row=2, col=1)
+
+    fig.update_layout(
+        height=700,
+        hovermode='x unified',
+        barmode='stack',
+        plot_bgcolor='rgba(0,0,0,0)',
+    )
+
+    return fig
 #Degradation
 
 #Minisector R
@@ -793,6 +881,23 @@ with tab4:
         st.stop()
     
     #1
+    with st.expander("Race Gap and Tyre Strategy Analysis", expanded=True):
+        st.subheader("Race Gap Over Time and Tyre Strategy")    
+
+        st.markdown("""
+        The top chart shows the gap to the leader for each driver throughout the race:
+        - The x-axis represents the lap number.         
+        - The y-axis represents the gap to the leader in seconds (lower is better).
+        - Each line represents a driver, color-coded by their team color.
+        - Hovering over the lines will show the exact gap at each lap.  
+        
+        The bottom chart shows the tyre strategy for each driver:
+        - Each horizontal bar represents a stint on a particular tyre compound.
+        - The color of the bar indicates the tyre compound used (Red=Soft, Yellow=Medium, White=Hard, Green=Intermediate, Blue=Wet).
+        """)
+
+        racegap_tyrestrat_chart = racegap_tyrestrategy_chart(laps_data, race_session)
+        st.plotly_chart(racegap_tyrestrat_chart, use_container_width=True)
 
     #2
 
