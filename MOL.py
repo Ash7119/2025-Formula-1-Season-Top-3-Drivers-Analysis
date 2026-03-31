@@ -82,7 +82,33 @@ def get_2025_race_schedule(year):
     except Exception as e:
         st.error(f"Error fetching schedule for {year}: {str(e)}")
         return None
-    
+
+def load_qualifying_fastest_laps(year, race_round, driver_codes):
+    try:
+        session = fastf1.get_session(year, race_round, 'Q')
+        session.load()
+        
+        fastest_laps = []
+        
+        for driver_code in driver_codes:
+            driver_laps = session.laps.pick_driver(driver_code)
+            
+            fastest_lap = driver_laps.pick_fastest()  
+            
+            if fastest_lap is not None and not fastest_lap.empty:  
+                fastest_lap['DriverCode'] = driver_code
+                fastest_laps.append(fastest_lap.to_frame().T)  
+        
+        if fastest_laps:  # 👈 Check if we found any laps
+            combined_fastest = pd.concat(fastest_laps, ignore_index=True)
+            return combined_fastest
+        else:
+            return None
+        
+    except Exception as e:
+        st.error(f"Error loading qualifying fastest laps: {str(e)}")
+        return None
+
 def load_race_session(year, race_name_or_round, session_type='R'):
     try:
         if str(race_name_or_round).isdigit():
@@ -395,11 +421,11 @@ def avg_position_chart(avg_positions_df, results_df):
     
     return fig
 
-#Delta Time Quali Code
-
 #Minisector Q
 
 #Speed trace with corner annotations
+
+#Delta Time Quali 
 
 def racegap_tyrestrategy_chart(laps_df, session):
     laps_df = laps_df.copy()
