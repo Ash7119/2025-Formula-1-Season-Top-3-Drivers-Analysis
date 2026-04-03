@@ -29,3 +29,4 @@ Link: https://docs.fastf1.dev/index.html
 
 ## Notes
 - Accurate Laps were used for the analysis in this project.
+- Spanish GP: Max Verstappen's 10 second penalty not included in the gap analysis.
