@@ -26,3 +26,5 @@ Link: https://docs.fastf1.dev/index.html
 2. Season Overview ✅
 3. Qualifying analysis
 4. Race analysis
+
+## Notes
