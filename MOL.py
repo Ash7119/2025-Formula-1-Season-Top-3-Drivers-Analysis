@@ -423,8 +423,6 @@ def avg_position_chart(avg_positions_df, results_df):
 
 #Minisector Q
 
-#Speed trace with corner annotations
-
 #Delta Time Quali 
 
 def racegap_tyrestrategy_chart(laps_df, session):
@@ -479,7 +477,6 @@ def racegap_tyrestrategy_chart(laps_df, session):
         driver_laps = laps_df[laps_df['DriverCode'] == driver_code].sort_values('LapNumber')
         driver_name = DRIVER_CONFIG[driver_code]['name']
         
-        # Calculate stint information using groupby
         stints = driver_laps[["DriverCode", "Stint", "Compound", "LapNumber"]].copy()
         stints = stints.groupby(["DriverCode", "Stint", "Compound"]).agg(
             stint_length=('LapNumber', 'count'),
@@ -487,7 +484,6 @@ def racegap_tyrestrategy_chart(laps_df, session):
             end_lap=('LapNumber', 'max')
         ).reset_index()
         
-        # Create stacked bars from stints
         for _, stint in stints.iterrows():
             fig.add_trace(go.Bar(
                 name=stint['Compound'],
@@ -502,7 +498,6 @@ def racegap_tyrestrategy_chart(laps_df, session):
                 showlegend=False
             ), row=2, col=1)
 
-    # Update layout
     fig.update_xaxes(title_text="Lap Number", row=2, col=1)
     fig.update_yaxes(title_text="Gap to Leader (s)", row=1, col=1)
     fig.update_yaxes(title_text="Driver", row=2, col=1)
@@ -865,7 +860,7 @@ with tab3:
     st.title("Qualifying Analysis")
     st.subheader("An analysis on the drivers performance during Qualifying Sessions across the 2025 F1 Season.")
     
-    st.markdown("""""
+    st.markdown("""
     This section will provide insights into the drivers' qualifying performance, including:
     - Delta Time Chart: Comparing the drivers' fastest lap times in qualifying sessions. This analysis is acompanied by a speed, throttle and delta panel to provide a comprehensive view of the drivers' performance during qualifying sessions.
     - Minisector Plot: A plot of the circuit where it displays the drivers dominance in deifferent parts of the track, showing which driver was faster in each sector of the circuit.
@@ -873,6 +868,25 @@ with tab3:
     """)
     
     st.markdown("---")
+
+    if len(selected_drivers) == 0:
+        st.warning("⚠️ Please select at least one driver from the sidebar")
+        st.stop()
+    st.caption(f"**Analyzing:** {', '.join([DRIVER_CONFIG[d]['name'] for d in selected_drivers])} | **Race:** {selected_race_name}")
+
+    st.markdown("---")
+
+    with st.spinner(f"Loading qualifying data for {selected_race_name}..."):
+        quali_session = load_race_session(selected_year, selected_race_round, 'Q')
+        quali_laps = load_race_laps(selected_year, selected_race_round, selected_drivers)
+    
+    if quali_session is None or quali_laps is None or quali_laps.empty:
+        st.error("Could not load qualifying data for this race. Please try another race.")
+        st.stop()
+    
+    #1
+
+    #2
 
 with tab4:
     st.title("Race Analysis")
