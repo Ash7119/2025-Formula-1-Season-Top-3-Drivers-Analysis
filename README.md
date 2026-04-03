@@ -28,3 +28,4 @@ Link: https://docs.fastf1.dev/index.html
 4. Race analysis
 
 ## Notes
+- Accurate Laps were used for the analysis in this project.
