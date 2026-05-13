@@ -423,7 +423,7 @@ def avg_position_chart(avg_positions_df, results_df):
 
 #Minisector Q
 
-#Delta Time Quali 
+#Delta Throttle Brake Speed Quali Chart
 
 def tyrestrategy_chart(laps_df, session):
     laps_df = laps_df.copy()
@@ -474,7 +474,7 @@ def tyrestrategy_chart(laps_df, session):
 
     fig.update_layout(
         title="Tyre Strategy",
-        height=400,  # Shorter since only one chart
+        height=400,  
         barmode='stack',
         plot_bgcolor='rgba(0,0,0,0)',
     )
@@ -892,8 +892,7 @@ with tab4:
         st.stop()
     
     #1
-    with st.expander("Race Gap and Tyre Strategy Analysis", expanded=True):
-        st.subheader("Race Gap Over Time and Tyre Strategy")    
+    with st.expander("Tyre Strategy Analysis", expanded=True):  
 
         st.markdown("""       
         The stacked bar chart shows the tyre strategy for each driver:
