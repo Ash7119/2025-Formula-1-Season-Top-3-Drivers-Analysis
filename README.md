@@ -29,4 +29,4 @@ Link: https://docs.fastf1.dev/index.html
 
 ## Notes
 - Accurate Laps were used for the analysis in this project.
-- Miami Gp not included due to data issues in the session.
+- Miami GP not included due to data issues in the session.
