@@ -483,8 +483,6 @@ def tyrestrategy_chart(laps_df, session):
     
 #Degradation
 
-#Minisector R
-
 def laptimes_scatter(laps_df, selected_drivers):
     
     fig = go.Figure()
@@ -904,8 +902,6 @@ with tab4:
         st.plotly_chart(tyrestrat_chart, use_container_width=True)
 
     #2
-
-    #3
 
     with st.expander("Lap Time Scatter Plot (by Tire Compound))", expanded=True):
         st.subheader("Lap Time Progression Throughout the Race")
