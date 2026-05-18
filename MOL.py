@@ -99,7 +99,7 @@ def load_qualifying_fastest_laps(year, race_round, driver_codes):
                 fastest_lap['DriverCode'] = driver_code
                 fastest_laps.append(fastest_lap.to_frame().T)  
         
-        if fastest_laps:  # 👈 Check if we found any laps
+        if fastest_laps:  
             combined_fastest = pd.concat(fastest_laps, ignore_index=True)
             return combined_fastest
         else:
@@ -422,6 +422,129 @@ def avg_position_chart(avg_positions_df, results_df):
     return fig
 
 #Minisector Q
+def create_minisector_comparison(session, driver_codes, num_minisectors=25):
+    laps = session.laps
+    telemetry_list = []
+    
+    for driver_code in driver_codes:
+        lap = laps.pick_driver(driver_code).pick_fastest()
+        if lap is not None and not lap.empty:
+            tel = lap.get_telemetry().add_distance()
+            tel['Driver'] = driver_code
+            telemetry_list.append(tel)
+    
+    if not telemetry_list:
+        return None
+    
+    telemetry = pd.concat(telemetry_list)
+    
+    total_distance = telemetry['Distance'].max()
+    minisector_length = total_distance / num_minisectors
+    telemetry['Minisector'] = telemetry['Distance'].apply(
+        lambda dist: int((dist // minisector_length) + 1)
+    )
+    
+    avg_speed = telemetry.groupby(['Minisector', 'Driver'])['Speed'].mean().reset_index()
+    fastest_driver = avg_speed.loc[avg_speed.groupby('Minisector')['Speed'].idxmax()]
+    fastest_driver = fastest_driver[['Minisector', 'Driver']].rename(columns={'Driver': 'Fastest_driver'})
+    
+    telemetry = telemetry.merge(fastest_driver, on='Minisector')
+    telemetry = telemetry.sort_values(by='Distance')
+    
+    fig = go.Figure()
+    
+    for driver_code in driver_codes:
+        driver_tel = telemetry[telemetry['Driver'] == driver_code].copy()
+        
+        driver_tel['Color'] = driver_tel['Fastest_driver'].map(
+            lambda d: DRIVER_CONFIG[d]['color']
+        )
+        
+        for minisector in driver_tel['Minisector'].unique():
+            sector_data = driver_tel[driver_tel['Minisector'] == minisector]
+            fastest_in_sector = sector_data['Fastest_driver'].iloc[0]
+            
+            fig.add_trace(go.Scatter(
+                x=sector_data['X'],
+                y=sector_data['Y'],
+                mode='lines',
+                line=dict(
+                    color=DRIVER_CONFIG[fastest_in_sector]['color'],
+                    width=5
+                ),
+                showlegend=False,
+                hovertemplate=f"Minisector {minisector}<br>" +
+                             f"Fastest: {DRIVER_CONFIG[fastest_in_sector]['name']}<br>" +
+                             "<extra></extra>"
+            ))
+    
+    for driver_code in driver_codes:
+        fig.add_trace(go.Scatter(
+            x=[None],
+            y=[None],
+            mode='lines',
+            line=dict(color=DRIVER_CONFIG[driver_code]['color'], width=5),
+            name=DRIVER_CONFIG[driver_code]['name'],
+            showlegend=True
+        ))
+    
+    circuit_info = session.get_circuit_info()  
+    corners = circuit_info.corners  
+    
+    ref_lap = laps.pick_driver(driver_codes[0]).pick_fastest()
+    ref_tel = ref_lap.get_telemetry().add_distance()
+    
+    for _, corner in corners.iterrows():
+        corner_distance = corner['Distance']  
+        corner_number = corner['Number']      
+        corner_letter = corner['Letter']     
+        
+        closest_idx = (ref_tel['Distance'] - corner_distance).abs().idxmin()
+        corner_x = ref_tel.loc[closest_idx, 'X']
+        corner_y = ref_tel.loc[closest_idx, 'Y']
+        
+        corner_label = f"{corner_number}{corner_letter}" if corner_letter else f"{corner_number}"
+        
+        fig.add_annotation(
+            x=corner_x,
+            y=corner_y,
+            text=corner_label,      
+            showarrow=True,          
+            arrowhead=2,
+            arrowsize=1,
+            arrowwidth=1,
+            arrowcolor='white',
+            font=dict(
+                size=10,
+                color='white'
+            ),
+            bgcolor='rgba(0,0,0,0.5)',  
+            bordercolor='white',
+            borderwidth=1,
+            ax=20,   
+            ay=-20   
+        )
+    
+    fig.update_layout(
+        title="Mini-Sector Speed Comparison",
+        xaxis=dict(
+            showgrid=False,
+            zeroline=False,
+            showticklabels=False,
+            scaleanchor="y",
+            scaleratio=1
+        ),
+        yaxis=dict(
+            showgrid=False,
+            zeroline=False,
+            showticklabels=False
+        ),
+        plot_bgcolor='rgba(0,0,0,0)',
+        height=600,
+        hovermode='closest'
+    )
+    
+    return fig
 
 #Delta Throttle Brake Speed Quali Chart
 
@@ -447,7 +570,6 @@ def tyrestrategy_chart(laps_df, session):
         driver_laps = laps_df[laps_df['DriverCode'] == driver_code].sort_values('LapNumber')
         driver_name = DRIVER_CONFIG[driver_code]['name']
         
-        # Calculate stint information using groupby
         stints = driver_laps[["DriverCode", "Stint", "Compound", "LapNumber"]].copy()
         stints = stints.groupby(["DriverCode", "Stint", "Compound"]).agg(
             stint_length=('LapNumber', 'count'),
@@ -465,7 +587,7 @@ def tyrestrategy_chart(laps_df, session):
                     color=compound_colors.get(stint['Compound'], '#808080'),
                     line=dict(color='black', width=1)
                 ),
-                hoverinfo='skip',  # No hovering
+                hoverinfo='skip',  
                 showlegend=False
             ))
 
@@ -855,8 +977,19 @@ with tab3:
         st.stop()
     
     #1
-
-    #2
+    
+    with st.expander("Mini-Sector Performance Comparison", expanded=True):
+        st.markdown("""
+        This plot compares the drivers' performance in different sections of the track during their fastest qualifying lap:
+        - The track is divided into mini-sectors, and each section is colored based on which driver was fastest in that mini-sector.
+        """)
+        
+        minisector_chart = create_minisector_comparison(quali_session, selected_drivers)
+        
+        if minisector_chart is not None:
+            st.plotly_chart(minisector_chart, use_container_width=True)
+        else:
+            st.warning("Could not create minisector comparison chart. Please check the data.")
 
 with tab4:
     st.title("Race Analysis")
