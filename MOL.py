@@ -421,7 +421,6 @@ def avg_position_chart(avg_positions_df, results_df):
     
     return fig
 
-#Minisector Q
 def create_minisector_comparison(session, driver_codes, num_minisectors=25):
     laps = session.laps
     telemetry_list = []
@@ -546,7 +545,149 @@ def create_minisector_comparison(session, driver_codes, num_minisectors=25):
     
     return fig
 
-#Delta Throttle Brake Speed Quali Chart
+def create_delta_time_chart(session, driver_codes, ref_driver=None, compare_driver=None):
+    
+    if ref_driver is None:
+        ref_driver = driver_codes[0]
+    if compare_driver is None:
+        compare_driver = driver_codes[1]
+    laps = session.laps
+    
+    driver_laps = {}
+    driver_tel = {}
+    
+    for driver_code in driver_codes:
+        lap = laps.pick_driver(driver_code).pick_fastest()
+        if lap is not None and not lap.empty:
+            driver_laps[driver_code] = lap
+            tel = lap.get_telemetry().add_distance()
+            driver_tel[driver_code] = tel
+    
+    if len(driver_tel) < 2:
+        st.error("Need at least 2 drivers with valid laps")
+        return None
+
+    if compare_driver and ref_driver in driver_laps and compare_driver in driver_laps:
+        delta_time, ref_tel, compare_tel = fastf1.utils.delta_time(
+            driver_laps[ref_driver],
+            driver_laps[compare_driver]
+        )
+        show_delta = True
+    else:
+        show_delta = False
+
+    fig = make_subplots(
+        rows=4, cols=1,
+        shared_xaxes=True,
+        vertical_spacing=0.05,
+        subplot_titles=["Speed (km/h)", "Throttle (%)", "Brake", "Delta Time (s)"],
+        row_heights=[3, 1, 1, 1]
+    )
+    
+    for driver_code in driver_codes:
+        tel = driver_tel[driver_code]
+        fig.add_trace(go.Scatter(
+            x=tel['Distance'],
+            y=tel['Speed'],
+            mode='lines',
+            name=DRIVER_CONFIG[driver_code]['name'],
+            line=dict(color=DRIVER_CONFIG[driver_code]['color'], width=2),
+            hovertemplate=f"<b>{DRIVER_CONFIG[driver_code]['name']}</b><br>" +
+                         "Distance: %{x:.0f}m<br>" +
+                         "Speed: %{y:.0f} km/h<br>" +
+                         "<extra></extra>",
+            showlegend=True
+        ), row=1, col=1)
+    
+    for driver_code in driver_codes:
+        tel = driver_tel[driver_code]
+        fig.add_trace(go.Scatter(
+            x=tel['Distance'],
+            y=tel['Throttle'],
+            mode='lines',
+            name=DRIVER_CONFIG[driver_code]['name'],
+            line=dict(color=DRIVER_CONFIG[driver_code]['color'], width=2),
+            hovertemplate=f"<b>{DRIVER_CONFIG[driver_code]['name']}</b><br>" +
+                         "Distance: %{x:.0f}m<br>" +
+                         "Throttle: %{y:.0f}%<br>" +
+                         "<extra></extra>",
+            showlegend=False
+        ), row=2, col=1)
+    
+    for driver_code in driver_codes:
+        tel = driver_tel[driver_code]
+        fig.add_trace(go.Scatter(
+            x=tel['Distance'],
+            y=tel['Brake'].astype(int),
+            mode='lines',
+            name=DRIVER_CONFIG[driver_code]['name'],
+            line=dict(color=DRIVER_CONFIG[driver_code]['color'], width=2),
+            hovertemplate=f"<b>{DRIVER_CONFIG[driver_code]['name']}</b><br>" +
+                         "Distance: %{x:.0f}m<br>" +
+                         "Braking: %{y}<br>" +
+                         "<extra></extra>",
+            showlegend=False
+        ), row=3, col=1)
+    
+    if show_delta:
+        fig.add_trace(go.Scatter(
+            x=ref_tel['Distance'],
+            y=delta_time,
+            mode='lines',
+            name="Delta",
+            line=dict(color='white', width=2, dash='dash'),
+            customdata=[
+                [
+                    DRIVER_CONFIG[ref_driver]['name'] if d > 0 else DRIVER_CONFIG[compare_driver]['name'],   
+                    DRIVER_CONFIG[compare_driver]['name'] if d > 0 else DRIVER_CONFIG[ref_driver]['name'],   
+                    abs(d)  # Absolute gap
+                ]
+                for d in delta_time
+            ],
+            hovertemplate=
+                "Distance: %{x:.0f}m<br>" +
+                "Ahead: <b>%{customdata[0]}</b><br>" +
+                "Behind: %{customdata[1]}<br>" +
+                "Gap: %{customdata[2]:.3f}s<br>" +
+                "<extra></extra>",
+            showlegend=True
+        ), row=4, col=1)
+        
+        fig.add_hline(
+            y=0,
+            line=dict(color='white', width=1),
+            row=4, col=1
+        )
+    else:
+        fig.add_annotation(
+            text="Select 2 drivers to see delta",
+            xref="x4", yref="y4",
+            x=0.5, y=0,
+            showarrow=False,
+            font=dict(color='white', size=12)
+        )
+    
+    fig.update_yaxes(title_text="Speed (km/h)", row=1, col=1)
+    fig.update_yaxes(title_text="Throttle (%)", row=2, col=1)
+    fig.update_yaxes(title_text="Brake", tickvals=[0, 1], ticktext=['Off', 'On'], row=3, col=1)
+    fig.update_yaxes(title_text="Delta (s)", row=4, col=1)
+    fig.update_xaxes(title_text="Distance (m)", row=4, col=1)
+    
+    fig.update_layout(
+        title=f"Fastest Lap Comparison - {session.event['EventName']} {session.event.year} Qualifying",
+        height=800,
+        hovermode='x unified',
+        plot_bgcolor='rgba(0,0,0,0)',
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1
+        )
+    )
+    
+    return fig
 
 def tyrestrategy_chart(laps_df, session):
     laps_df = laps_df.copy()
@@ -880,11 +1021,11 @@ tab1, tab2, tab3, tab4 = st.tabs([
 ])
 
 with tab1:
-    st.title("🏎️ Welcome to the 2025 Formula 1 Season Top 3 Drivers Analysis Dashboard")
+    st.title("🏎️ Welcome to the 2025 Formula 1 Season Top 3 Drivers Analysis")
     st.subheader("Max Verstappen vs Lando Norris vs Oscar Piastri")
     
     st.markdown("""
-    This dashboard provides comprehensive analysis of the 2025 F1 season battle between 
+    This study provides comprehensive analysis of the 2025 F1 season battle between 
     Max Verstappen (Red Bull Racing), Lando Norris (McLaren), and Oscar Piastri (McLaren).
     """)
     
@@ -895,7 +1036,7 @@ with tab2:
     st.subheader("Championship Standings and Performance Metrics")
     
     st.markdown("""
-    - Championship Standings: A table showing the current points and positions of the top 3 drivers.
+    - Championship Standings: A table showing the final points and positions of the 3 drivers.
     - Performance Metrics: Key statistics such as wins, podiums, pole positions, and fastest laps.
     """)
 
@@ -954,9 +1095,8 @@ with tab3:
     
     st.markdown("""
     This section will provide insights into the drivers' qualifying performance, including:
-    - Delta Time Chart: Comparing the drivers' fastest lap times in qualifying sessions. This analysis is acompanied by a speed, throttle and delta panel to provide a comprehensive view of the drivers' performance during qualifying sessions.
+    - Delta Time Chart: Comparing the drivers' fastest lap times in qualifying sessions. This analysis is acompanied by a speed, throttle, brake and delta panel to provide a comprehensive view of the drivers' performance during qualifying sessions.
     - Minisector Plot: A plot of the circuit where it displays the drivers dominance in deifferent parts of the track, showing which driver was faster in each sector of the circuit.
-    - Speed Trace with Corner Annotations: A plot of the drivers speed trace during their fastest qualifying lap, with the x-axis representing the corners and the y axis representing the speed. 
     """)
     
     st.markdown("---")
@@ -977,7 +1117,36 @@ with tab3:
         st.stop()
     
     #1
+    with st.expander("Delta Time Comparison", expanded=True):
+        st.markdown("""
+    This chart compares the drivers' performance during their fastest qualifying lap:
+    - The top panel shows the speed of each driver throughout the lap.
+    - The middle panels show the throttle and brake application.
+    - The bottom panel shows the delta time between the two drivers, with a dashed line indicating when they are equal.
+    """)
     
+        delta_comparison = st.radio(
+            "Delta Comparison",
+            options=["VER vs NOR", "VER vs PIA", "NOR vs PIA"],
+            horizontal=True
+    )
+    
+        delta_map = {
+            "VER vs NOR": ("VER", "NOR"),
+            "VER vs PIA": ("VER", "PIA"),
+            "NOR vs PIA": ("NOR", "PIA")
+        }
+    
+        ref_driver, compare_driver = delta_map[delta_comparison]  
+    
+        delta_chart = create_delta_time_chart(quali_session, [ref_driver, compare_driver])
+    
+        if delta_chart is not None:
+            st.plotly_chart(delta_chart, use_container_width=True)
+        else:
+            st.warning("Could not create delta time chart. Please check the data.")  
+    
+    #2
     with st.expander("Mini-Sector Performance Comparison", expanded=True):
         st.markdown("""
         This plot compares the drivers' performance in different sections of the track during their fastest qualifying lap:
@@ -999,7 +1168,6 @@ with tab4:
     This section will provide insights into the drivers' race performance, including:
     - Tyre Strategy Analysis: A bar chart showing the tyre strategy of each driver during the race, including the type of tyre used and the lap on which they were used.
     - Degradation Analysis: A line plot showing the degradation of the tyres over the course of the race.
-    - Minisection Plot: A plot of the circuit where it displays the drivers dominance in deifferent parts of the track, showing which driver was faster in each sector of the circuit.
     - Lap Time Scatter Plot: A scatter plot of the lap times of each driver during the race, with the x-axis representing the lap number and the y-axis representing the lap time grouped by tyre compound. This plot can be used to identify trends in the drivers' performance throughout the race.
     - Lap Time Violin PLot: A violin plot of the lap times of each driver during the race, with the x-axis representing the driver and the y-axis representing the lap time grouped by tyre compound. This plot can be used to identify trends in the drivers' performance throughout the race.
     - Race Pace Comparision: A box plot comparing the race pace of the drivers.
@@ -1035,7 +1203,6 @@ with tab4:
         st.plotly_chart(tyrestrat_chart, use_container_width=True)
 
     #2
-
     with st.expander("Lap Time Scatter Plot (by Tire Compound))", expanded=True):
         st.subheader("Lap Time Progression Throughout the Race")
         
@@ -1055,9 +1222,8 @@ with tab4:
         
         st.markdown("""
         This violin plot shows the distribution of lap times for each driver, grouped by tire compound:
-        - Each violin represents the distribution of lap times for a specific driver and tire compound.
         - The width of the violin indicates the density of lap times at different values.
-        - The box plot inside the violin shows the interquartile range and median lap time.
+        - The color of the markers indicates the tire compound used for each lap.
         """)
         
         laptimes_violin_chart = laptimes_violin(laps_data, selected_drivers)
