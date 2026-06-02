@@ -6,10 +6,6 @@ import fastf1
 from fastf1 import plotting
 import pandas as pd
 import numpy as np
-import seaborn as sns
-import matplotlib.pyplot as plt
-import matplotlib
-matplotlib.use('TkAgg')
 import plotly.graph_objects as go
 import plotly.express as px
 from plotly.subplots import make_subplots
@@ -744,7 +740,117 @@ def tyrestrategy_chart(laps_df, session):
 
     return fig
     
-#Degradation
+def degradation_chart(laps_df, session):
+    laps_df = laps_df.copy()
+    
+    compound_colors = {
+        'SOFT': '#FF0000',      
+        'MEDIUM': '#FFA500',    
+        'HARD': '#FFFFFF',      
+        'INTERMEDIATE': '#00FF00',  
+        'WET': '#0000FF'        
+    }
+    
+    fig = go.Figure()
+    
+    for driver_code in ['VER', 'NOR', 'PIA']:
+        if driver_code not in laps_df['DriverCode'].unique():
+            continue
+            
+        driver_laps = laps_df[laps_df['DriverCode'] == driver_code].sort_values('LapNumber')
+        driver_name = DRIVER_CONFIG[driver_code]['name']
+        
+        valid_laps = driver_laps[
+            (driver_laps['LapTime'].notna()) &
+            (driver_laps['IsAccurate'] == True)
+        ].copy()
+        
+        if valid_laps.empty:
+            continue
+        
+        valid_laps['LapTimeSeconds'] = valid_laps['LapTime'].dt.total_seconds()
+        
+        stints = valid_laps.groupby(['Stint', 'Compound'])
+        
+        for (stint_id, compound), stint_laps in stints:
+            if len(stint_laps) < 2:
+                continue
+            
+            stint_laps = stint_laps.sort_values('TyreLife').copy()
+            
+            first_lap_time = stint_laps['LapTimeSeconds'].iloc[0]
+            stint_laps['Degradation'] = stint_laps['LapTimeSeconds'] - first_lap_time
+            
+            compound_color = compound_colors.get(compound, '#808080')
+            
+            degradation_labels = stint_laps['Degradation'].apply(
+                lambda d: f"+{d:.3f}s (slower)" if d > 0 else f"{d:.3f}s (faster)" if d < 0 else "0.000s (same)"
+            ).values
+            
+            fig.add_trace(go.Scatter(
+                x=stint_laps['TyreLife'],
+                y=stint_laps['Degradation'],
+                mode='lines+markers',
+                name=f"{driver_name} - {compound} (Stint {int(stint_id)})",
+                line=dict(
+                    color=DRIVER_CONFIG[driver_code]['color'],
+                    width=2,
+                    dash='solid' if compound == 'HARD' else
+                          'dash' if compound == 'MEDIUM' else
+                          'dot'
+                ),
+                marker=dict(
+                    size=6,
+                    color=compound_color,
+                    line=dict(color='black', width=0.5)
+                ),
+                customdata=degradation_labels,  
+                hovertemplate=f"<b>{driver_name}</b><br>" +
+                             f"Compound: {compound}<br>" +
+                             f"Stint: {int(stint_id)}<br>" +
+                             "Tyre Life: %{x} laps<br>" +
+                             "Degradation: %{customdata}<br>" +  
+                             "<extra></extra>"
+            ))
+    
+    fig.add_hline(
+        y=0,
+        line=dict(color='white', width=1, dash='dash'),
+        annotation_text="Baseline (Lap 1 of Stint)",
+        annotation_font_color='white'
+    )
+    
+    fig.update_layout(
+        title="Tyre Degradation by Stint",
+        xaxis_title="Tyre Life (Laps)",
+        yaxis_title="Degradation (s vs Lap 1)",
+        hovermode='closest',
+        height=600,
+        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='rgba(0,0,0,0)',
+        font=dict(color='white', size=12),
+        legend=dict(
+            orientation="v",
+            yanchor="top",
+            y=1,
+            xanchor="left",
+            x=1.02,
+            bgcolor='rgba(0,0,0,0.5)',
+            title="Driver - Compound - Stint"
+        ),
+        xaxis=dict(
+            showgrid=True,
+            gridwidth=1,
+            gridcolor='#333333'
+        ),
+        yaxis=dict(
+            showgrid=True,
+            gridwidth=1,
+            gridcolor='#333333'
+        )
+    )
+    
+    return fig
 
 def laptimes_scatter(laps_df, selected_drivers):
     
@@ -1021,13 +1127,22 @@ tab1, tab2, tab3, tab4 = st.tabs([
 ])
 
 with tab1:
+    
     st.title("🏎️ Welcome to the 2025 Formula 1 Season Top 3 Drivers Analysis")
     st.subheader("Max Verstappen vs Lando Norris vs Oscar Piastri")
-    
-    st.markdown("""
+   
+    st.markdown(""" 
+    The 2025 Formula 1 Season was the first time since 2010 where the Championship 
+    was decided in the final race of the season with 3 or more title contenders. 
+    These 3 drivers being Max Verstappen of Red Bull Racing, Lando Norris of Mclaren F1 
+    and Oscar Piastri of Mclaren F1. The title was won by Lando Norris of Mclaren F1 with 
+    Max Verstappen of Red Bull Racing coming in second with a point difference of 2 points between then. 
+    With Oscar Piastri coming in 3rd with a differnce of 13 points between 1st and 3rd.
     This study provides comprehensive analysis of the 2025 F1 season battle between 
     Max Verstappen (Red Bull Racing), Lando Norris (McLaren), and Oscar Piastri (McLaren).
     """)
+    
+    st.image("https://coffeecornermotorsport.com/wp-content/uploads/2025/12/SI202512070209.webp",use_container_width=True)
     
     st.markdown("---")
 
@@ -1203,6 +1318,19 @@ with tab4:
         st.plotly_chart(tyrestrat_chart, use_container_width=True)
 
     #2
+    with st.expander("Tyre Degradation Analysis", expanded=True):
+        st.markdown("""
+        The line plot shows the degradation of the tyres over the course of each stint:
+        - The x-axis represents the tyre life in laps, while the y-axis represents the degradation in seconds compared to the first lap of the stint.
+        - Each line represents a stint on a particular tyre compound, with the color indicating the driver and the line style indicating the tyre compound (solid=Hard, dashed=Medium, dotted=Soft).
+        """)
+        
+        degradation_chart_fig = degradation_chart(laps_data, race_session)
+        st.plotly_chart(degradation_chart_fig, use_container_width=True)
+
+        st.markdown("---")
+
+    #3
     with st.expander("Lap Time Scatter Plot (by Tire Compound))", expanded=True):
         st.subheader("Lap Time Progression Throughout the Race")
         
@@ -1217,6 +1345,7 @@ with tab4:
         
         st.markdown("---")
 
+    #4
     with st.expander("Lap Time Distribution Violin Plot", expanded=False):
         st.subheader("Lap Time Distribution by Driver and Tire Compound")
         
@@ -1229,6 +1358,7 @@ with tab4:
         laptimes_violin_chart = laptimes_violin(laps_data, selected_drivers)
         st.plotly_chart(laptimes_violin_chart, use_container_width=True)
 
+    #5
     with st.expander("Race Pace Comparison Box Plot", expanded=False):
         st.subheader("Race Pace Comparison")
         
