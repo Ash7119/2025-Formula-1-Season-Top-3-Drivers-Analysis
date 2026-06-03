@@ -2,4 +2,3 @@ streamlit
 fastf1
 pandas
 plotly
-pandas
