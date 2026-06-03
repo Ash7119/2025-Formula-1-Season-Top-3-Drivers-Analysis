@@ -16,7 +16,6 @@ Link: https://docs.fastf1.dev/index.html
 - FastF1
 - Streamlit
 - Plotly
-- Numpy
 - Pandas
 
 ## Sources
