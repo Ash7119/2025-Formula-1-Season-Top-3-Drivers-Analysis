@@ -7,6 +7,20 @@ The analysis is hosted by a streamlit dashboard with 4 tabs:
 - Qualifying Analysis
 - Race Analysis
 
+## How to run it locally
+### Step 1: Clone the Repository
+git clone https://github.com/Ash7119/2025-Formula-1-Season-Top-3-Drivers-Analysis.git
+cd 2025-Formula-1-Season-Top-3-Drivers-Analysis
+
+### Step 2: Install Dependencies
+pip install streamlit fastf1 pandas plotly
+
+### Step 3: Run the App
+python -m streamlit run MOL.py
+
+### Step 4: Open in Browser
+The app will automatically open in your browser
+
 ## Data
 The data is pulled from the FastF1 api.
 
@@ -28,3 +42,4 @@ These sources helped me in conducting this project:
 ## Notes
 - Accurate Laps were used for the analysis in this project.
 - Miami GP not included due to data issues in the session.
+- The first time you run the app, FastF1 will download and cache race data locally. This may take a few minutes. Subsequent loads will be much faster as data is cached in the `.fastf1_cache` folder.
