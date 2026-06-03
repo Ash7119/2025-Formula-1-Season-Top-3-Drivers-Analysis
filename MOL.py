@@ -5,7 +5,6 @@ import streamlit as st
 import fastf1
 from fastf1 import plotting
 import pandas as pd
-import numpy as np
 import plotly.graph_objects as go
 import plotly.express as px
 from plotly.subplots import make_subplots
@@ -1202,8 +1201,7 @@ with tab2:
     avg_display.index = [DRIVER_CONFIG[d]['name'] for d in avg_display.index]
     avg_display.columns = ['Avg Qualifying Position', 'Avg Race Finish']
     st.dataframe(avg_display, use_container_width=True)
-
-    
+   
 with tab3:
     st.title("Qualifying Analysis")
     st.subheader("An analysis on the drivers performance during Qualifying Sessions across the 2025 F1 Season.")
