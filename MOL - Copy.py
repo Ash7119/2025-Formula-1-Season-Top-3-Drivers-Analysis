@@ -136,7 +136,8 @@ def load_session_results_only(year, round_num, session_type='R'):
 
 # 👉 UPDATED: Uses load_session_results_only + time.sleep to avoid rate limiting
 @st.cache_data(ttl=3600)
-def load_all_season_data(year, schedule):
+def load_all_season_data(year):
+    schedule = fastf1.get_event_schedule(year)
     all_results = []
     
     completed_races = schedule[schedule['EventDate'] <= pd.Timestamp.now()]
@@ -1162,7 +1163,7 @@ with tab2:
         st.error("Unable to load race schedule. Please check your connection.")
     else:
         with st.spinner("Loading season data... (this may take a moment)"):
-            season_results = load_all_season_data(selected_year, schedule)
+            season_results = load_all_season_data(selected_year)
         
         if season_results.empty:
             st.warning("No race data available yet for the 2025 season.")
