@@ -1,5 +1,5 @@
 # 2025 Formula 1 Season Top 3 Driver Analysis
-The 2025 Formula 1 Season was the first time since 2010 where the Championship was decided in the final race of the season with 3 or more title contenders. These 3 drivers being Max Verstappen of Red Bull Racing, Lando Norris of Mclaren F1 and Oscar Piastri of Mclaren F1. The title was won by Lando Norris of Mclaren F1 with Max Verstappen of Red Bull Racing coming in second with a point difference of 2 points between then. With Oscar Piastri coming in 3rd with a differnce of 13 points between 1st and 3rd. 
+The 2025 Formula 1 Season was the first time since 2010 where the Championship was decided in the final race of the season with 3 or more title contenders. These 3 drivers being Max Verstappen of Red Bull Racing, Lando Norris of Mclaren F1 and Oscar Piastri of Mclaren F1. The title was won by Lando Norris of Mclaren F1 with Max Verstappen of Red Bull Racing coming in second with a point difference of 2 points between then. With Oscar Piastri coming in 3rd with a differnce of 13 points between 1st and 3rd.  This study provides comprehensive analysis of the 2025 F1 season battle between Max Verstappen (Red Bull Racing), Lando Norris (McLaren), and Oscar Piastri (McLaren). 
 
 The analysis is hosted by a streamlit dashboard with 4 tabs:
 - Home Page
