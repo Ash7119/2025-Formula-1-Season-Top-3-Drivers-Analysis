@@ -399,7 +399,7 @@ def avg_position_chart(avg_positions_df, results_df):
     ))
     
     fig.update_layout(
-        title="Average Qualifying vs Race Positions",
+        title="Average Qualifying vs Average Race Positions",
         xaxis_title="Driver",
         yaxis_title="Position ",
         barmode='group',
