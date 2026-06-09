@@ -1155,13 +1155,13 @@ with tab2:
     """)
 
     if schedule is None:
-        st.error("Unable to load race schedule. Please check your connection.")
+        st.error("Unable to load race schedule for 2025 Season.")
     else:
         with st.spinner("Loading season data..."):
             season_results = load_all_season_data(selected_year, schedule)
         
         if season_results.empty:
-            st.warning("No race data available yet for the 2025 season.")
+            st.warning("No race data available for the 2025 season.")
         else:
             standings = calculate_championship_standings(season_results)
             cumulative_points = calculate_cumulative_points(season_results)
