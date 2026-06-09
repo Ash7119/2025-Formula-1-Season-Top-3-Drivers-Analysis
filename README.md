@@ -42,4 +42,5 @@ These sources helped me in conducting this project:
 ## Notes
 - Accurate Laps were used for the analysis in this project.
 - Miami GP not included due to data issues in the session.
+- For the Mini-Sector Performance Comparison, please utilize the driver selection in the side bar if you want to see 2 drivers only.
 - The first time you run the app, FastF1 will download and cache race data locally. This may take a few minutes. Subsequent loads will be much faster as data is cached in the `.fastf1_cache` folder.
