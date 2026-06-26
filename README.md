@@ -40,7 +40,7 @@ These sources helped me in conducting this project:
 - https://medium.com/towards-formula-1-analysis/analyzing-formula-1-data-using-python-2021-abu-dhabi-gp-minisector-comparison-3d72aa39e5e8
 
 ## Demo
-
+https://github.com/user-attachments/assets/f83b96a1-ef23-4b78-8e28-5332ce0b2af2
 
 ## Notes
 - Accurate Laps were used for the analysis in this project.
